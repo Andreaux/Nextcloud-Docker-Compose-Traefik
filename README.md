@@ -1,4 +1,4 @@
-# nextcloud-docker-compose
+# Nextcloud docker-compose template with MariaDB and Cron jobs with traefik labels
 
 This is my Nextcloud docker-compose (almost) "all-in-one" template.
 
