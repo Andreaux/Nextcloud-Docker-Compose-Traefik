@@ -15,7 +15,7 @@ The stack is flavoured to be used along with traefik acting as proxy and issuing
 
 This docker-compose file doesn't contain traefik. The traefik labels might need adjusting to fit your environment.
 
-# Environment variables
+## Environment variables
 
 Docker Compose will need environment variables set. I have included examples as in-line comments to make what is expected there easier to understand. 
 
