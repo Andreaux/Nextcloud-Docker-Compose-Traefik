@@ -15,6 +15,10 @@ The stack is flavoured to be used along with traefik acting as proxy and issuing
 
 This docker-compose file doesn't contain traefik. The traefik labels might need adjusting to fit your environment.
 
+# Environment variables
+
+Docker Compose will need environment variables set. I have included examples as in-line comments to make what is expected there easier to understand. 
+
 ## Note about deploying the stack with no pre-existing Nextcloud DB
 
 This template was created along an existing Nextcloud DB. For the first run, you might need to comment out the healthcheck part for the mariadb container as it checks for a database called 'nextcloud' which at that stage obviously doesn't exist yet. I'm unsure how the stack would start absent that DB. Let me know if you have success deploying this stack without a pre-existing Nextcloud DB while not removing the healthcheck.
