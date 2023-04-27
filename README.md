@@ -1,11 +1,11 @@
 # Nextcloud docker-compose template with MariaDB and Cron jobs with traefik labels
 
-This is my Nextcloud docker-compose (almost) "all-in-one" template.
+This is my Nextcloud Docker-Compose (almost) "all-in-one" template.
 
 The stack features separate containers for:
-- mariadb
-- nextcloud
-- nextcloud cron jobs
+- mariadb (mariadb:latest)
+- nextcloud (nextcloud:latest)
+- nextcloud cron jobs (rcdailey/nextcloud-cronjob:latest)
 
 The stack also includes minimal healthcheck for mariadb to make sure the DB is available before the other containers are started.
 
