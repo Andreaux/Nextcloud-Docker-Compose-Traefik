@@ -27,10 +27,14 @@ services:
 #      - MYSQL_HOST=${MYSQL_DATABASE}:3306
 #      - PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     restart: unless-stopped
+#
+# FIRST TIME DEPLOY: comment out the healthcheck section because it checks for an existing DB called nextcloud.
     healthcheck:
       test: ["CMD-SHELL", "mysql nextcloud -uroot -p${MYSQL_ROOT_PASSWORD} -e 'SELECT 1;'  || exit 1"]
       interval: 2s
       retries: 120
+# /FIRST TIME DEPLOY
+#
     networks:
       - proxy
     ports:
