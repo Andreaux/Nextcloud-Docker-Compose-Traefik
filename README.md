@@ -23,6 +23,10 @@ Docker Compose will need environment variables set. I have included examples as 
 
 This template was created along an existing Nextcloud DB. For the first run, you might need to comment out the healthcheck part for the mariadb container as it checks for a database called 'nextcloud' which at that stage obviously doesn't exist yet. I'm unsure how the stack would start absent that DB. Let me know if you have success deploying this stack without a pre-existing Nextcloud DB while not removing the healthcheck.
 
+## Plans for the future
+
+A standalone running version of the Collabora Code (Nexcloud Office) might be included in this docker-compose template to deploy alongside Nextcloud, practically making this an all-in-one deployment solution for Nextcloud over Traefik.
+
 ## Disclaimer
 
 This template is provided as-is with no pretention as for its usefulness or accuracy. I provide no support, but am open to suggestions or corrections. Bear in mind that I'm still learning docker and docker-compose so there's no guarantee I haven't made errors in there although this installation works fine since a few weeks now.
