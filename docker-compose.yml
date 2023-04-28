@@ -58,6 +58,8 @@ services:
       - PUID=${PUID}
 # PGID=33
       - PGID=${PGID}
+# NEXTCLOUD_HOSTNAME=hostname.subdomain.mydomain.com
+      - NEXTCLOUD_HOSTNAME=nextcloud.${DOMAINNAME}
     networks:
       - proxy
     labels:
