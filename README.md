@@ -11,7 +11,7 @@ The stack also includes minimal healthcheck for mariadb to make sure the DB is a
 
 Configuration for Nextcloud and the DB are mapped from local folders in /mnt (mounted remotely from my TrueNAS box using NFS). You can easily change the mount path through environment variables to suit your installation.
 
-The stack is flavoured to be used along with traefik acting as proxy and issuing SSL certificates.
+The stack is flavoured to be used along with traefik acting as proxy and issuing SSL certificates through Cloudflare (a free account totally works).
 
 This docker-compose file doesn't contain traefik. The traefik labels might need adjusting to fit your environment.
 
