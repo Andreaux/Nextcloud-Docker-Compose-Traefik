@@ -58,19 +58,19 @@ services:
       - PUID=${PUID}
 # PGID=33
       - PGID=${PGID}
-# NEXTCLOUD_HOSTNAME=hostname.subdomain.mydomain.com
+# NEXTCLOUD_HOSTNAME=hostname.subdomain.mydomain.tld
       - NEXTCLOUD_HOSTNAME=nextcloud.${DOMAINNAME}
     networks:
       - proxy
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.nextcloud.entrypoints=http"
-# DOMAINNAME=subdomain.mydomain.com
+# DOMAINNAME=subdomain.mydomain.tld
       - "traefik.http.routers.nextcloud.rule=Host(`nextcloud.${DOMAINNAME}`)"
       - "traefik.http.middlewares.https-redirect.redirectscheme.scheme=https"
       - "traefik.http.routers.nextcloud.middlewares=https-redirect"
       - "traefik.http.routers.nextcloud-secure.entrypoints=https"
-# DOMAINNAME=subdomain.mydomain.com
+# DOMAINNAME=subdomain.mydomain.tld
       - "traefik.http.routers.nextcloud-secure.rule=Host(`nextcloud.${DOMAINNAME}`)"
       - "traefik.http.middlewares.nextcloud_redirectregex.redirectregex.regex=https://(.*)/.well-known/(card|cal)dav"
       - "traefik.http.middlewares.nextcloud_redirectregex.redirectregex.replacement=https://$$1/remote.php/dav/"
@@ -111,6 +111,51 @@ services:
       - PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     networks:
       - proxy
+
+  collabora:
+    image: collabora/code:latest
+    container_name: collabora
+    depends_on:
+      - nextcloud
+    volumes:
+# MOUNTED_DATA_DIR=/mnt
+      - /etc/localtime:/etc/localtime
+      - /etc/timezone:/etc/timezone
+    restart: unless-stopped
+    environment:
+      - "dictionaries=en_US,hu_HU,fr_FR,de_DE"
+# ESCAPED_COLLABORA_DOMAINNAME=hostname\.subdomain\.domain\.tld|subdomain\.domain\.tld
+      - "domain=${ESCAPED_COLLABORA_DOMAINNAME}"
+      - "extra_params=--o:ssl.enable=false --o:ssl.termination=true"
+      - "LC_CTYPE=C.UTF-8"
+      - "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+# COLLABORA_USERNAME=username
+      - "username=${COLLABORA_USERNAME}"
+# COLLABORA_PASSWORD=***PASSWORD***
+      - "password=${COLLABORA_PASSWORD}"
+# DOMAINNAME=subdomain.mydomain.tld
+      - "VIRTUAL_HOST=collabora.${DOMAINNAME}"
+      - "VIRTUAL_PORT=9980"
+      - "VIRTUAL_PROTO=https"
+    networks:
+      - proxy
+    ports:
+      - "9980:9980"
+    hostname: collabora
+    domainname: ${DOMAINNAME}
+    labels:
+      - "org.opencontainers.image.ref.name=ubuntu"
+      - "org.opencontainers.image.version=18.04"
+      - "traefik.docker.network=proxy"
+      - "traefik.enable=true"
+      - "traefik.http.routers.collabora.entrypoints=https"
+# DOMAINNAME=subdomain.mydomain.tld
+      - "traefik.http.routers.collabora.rule=Host(`collabora.${DOMAINNAME}`)"
+      - "traefik.http.routers.collabora.service=collabora"
+      - "traefik.http.routers.collabora.tls=true"
+      - "traefik.http.routers.collabora.tls.certresolver=cloudflare"
+      - "traefik.http.routers.collabora.tls.options=default"
+      - "traefik.http.services.collabora.loadbalancer.server.port=9980"
 
 networks:
   proxy:
