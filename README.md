@@ -22,10 +22,6 @@ Docker Compose will need environment variables set. I have included examples as 
 
 There is a .env file included with examples for the environment variables. If you use Portainer like I do, you will have to set these within Portainer when creating the Nextcloud stack after you've pasted the docker-compose.yml file into Portainer. If you use "docker compose" to bring up the stack, the .env file should be picked up automatically so fill in your information in there.
 
-## Deploying the stack with no pre-existing Nextcloud DB
-
-This template was created along an existing Nextcloud DB. For the first run, you most probably need to comment out the healthcheck part for the mariadb container as it checks for a database called 'nextcloud' which at that stage obviously doesn't exist yet. I'm unsure how the stack would start absent that DB. Let me know if you have success deploying this stack without a pre-existing Nextcloud DB while not removing the healthcheck.
-
 ## Support this project
 
 If you find this useful, a coffee through Ko-Fi is all it takes to make me happy <3 (I love coffee :D) Click the Sponsor button on the top of this page or visit https://ko-fi.com/andreaux to buy me a coffee.
