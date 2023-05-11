@@ -1,0 +1,163 @@
+version: "3.6"
+
+services:
+  mariadb:
+    image: mariadb
+    container_name: mariadb
+# MARIADB_USER=www-data
+    user: ${MARIADB_USER}
+    command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW
+    volumes:
+# MOUNTED_DATA_DIR=/mnt
+      - ${MOUNTED_DATA_DIR}/mysql:/var/lib/mysql
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - GOSU_VERSION=1.14
+      - MARIADB_MYSQL_LOCALHOST_USER=true
+# MYSQL_ROOT_PASSWORD=***PASSWORD***
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - TZ=${TZ}
+# PUID=33
+      - PUID=${PUID}
+# PGID=33
+      - PGID=${PGID}
+#      - MYSQL_DATABASE=${MYSQL_DATABASE}
+#      - MYSQL_USER=${MYSQL_USER}
+#      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+#      - MYSQL_HOST=${MYSQL_DATABASE}:3306
+#      - PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    restart: unless-stopped
+#
+# FIRST TIME DEPLOY: comment out the healthcheck section because it checks for an existing DB called nextcloud.
+    healthcheck:
+      test: ["CMD-SHELL", "mysql nextcloud -uroot -p${MYSQL_ROOT_PASSWORD} -e 'SELECT 1;'  || exit 1"]
+      interval: 2s
+      retries: 120
+# /FIRST TIME DEPLOY
+#
+    networks:
+      - proxy
+    ports:
+      - "32768:3306"
+    labels:
+      - "traefik.docker.network=proxy"
+      - "traefik.enable=true"
+
+  nextcloud:
+    image: nextcloud
+    container_name: nextcloud
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    volumes:
+# MOUNTED_DATA_DIR=/mnt
+      - ${MOUNTED_DATA_DIR}/nextcloud:/var/www/html
+    restart: unless-stopped
+    environment:
+# PUID=33
+      - PUID=${PUID}
+# PGID=33
+      - PGID=${PGID}
+# NEXTCLOUD_HOSTNAME=hostname.subdomain.mydomain.tld
+      - NEXTCLOUD_HOSTNAME=nextcloud.${DOMAINNAME}
+    networks:
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nextcloud.entrypoints=http"
+# DOMAINNAME=subdomain.mydomain.tld
+      - "traefik.http.routers.nextcloud.rule=Host(`nextcloud.${DOMAINNAME}`)"
+      - "traefik.http.middlewares.https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.nextcloud.middlewares=https-redirect"
+      - "traefik.http.routers.nextcloud-secure.entrypoints=https"
+# DOMAINNAME=subdomain.mydomain.tld
+      - "traefik.http.routers.nextcloud-secure.rule=Host(`nextcloud.${DOMAINNAME}`)"
+      - "traefik.http.middlewares.nextcloud_redirectregex.redirectregex.regex=https://(.*)/.well-known/(card|cal)dav"
+      - "traefik.http.middlewares.nextcloud_redirectregex.redirectregex.replacement=https://$$1/remote.php/dav/"
+      - "traefik.http.middlewares.nextcloud_redirectregex.redirectregex.permanent=true"
+      - "traefik.http.middlewares.nextcloud-headers.headers.referrerPolicy=no-referrer"
+      - "traefik.http.middlewares.nextcloud-headers.headers.stsSeconds=31536000"
+      - "traefik.http.middlewares.nextcloud-headers.headers.forceSTSHeader=true"
+      - "traefik.http.middlewares.nextcloud-headers.headers.stsPreload=true"
+      - "traefik.http.middlewares.nextcloud-headers.headers.stsIncludeSubdomains=true"
+      - "traefik.http.middlewares.nextcloud-headers.headers.browserXssFilter=true"
+      - "traefik.http.middlewares.nextcloud-headers.headers.customRequestHeaders.X-Forwarded-Proto=https"
+      - "traefik.http.routers.nextcloud-secure.middlewares=nextcloud_redirectregex,nextcloud-headers"
+      - "traefik.http.routers.nextcloud-secure.tls=true"
+      - "traefik.http.routers.nextcloud-secure.tls.certresolver=cloudflare"
+      - "traefik.http.routers.nextcloud-secure.service=nextcloud"
+      - "traefik.http.services.nextcloud.loadbalancer.server.port=80"
+      - "traefik.docker.network=proxy"
+
+  nextcloud-cronjob:
+    image: rcdailey/nextcloud-cronjob
+    container_name: nextcloud-cronjob
+    depends_on:
+      - nextcloud
+    volumes:
+# MOUNTED_DATA_DIR=/mnt
+      - ${MOUNTED_DATA_DIR}/nextcloud:/var/www/html
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+    environment:
+      - NEXTCLOUD_CONTAINER_NAME=nextcloud
+      - NEXTCLOUD_CRON_MINUTE_INTERVAL=5
+      - NEXTCLOUD_EXEC_SHELL=bash
+      - NEXTCLOUD_EXEC_SHELL_ARGS=-c
+# NEXTCLOUD_USER=www-data
+      - NEXTCLOUD_EXEC_USER=${NEXTCLOUD_USER}
+#      - NEXTCLOUD_PROJECT_NAME
+      - PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    networks:
+      - proxy
+
+  collabora:
+    image: collabora/code:latest
+    container_name: collabora
+    depends_on:
+      - nextcloud
+    volumes:
+# MOUNTED_DATA_DIR=/mnt
+      - /etc/localtime:/etc/localtime
+      - /etc/timezone:/etc/timezone
+    restart: unless-stopped
+    environment:
+      - "dictionaries=en_US,hu_HU,fr_FR,de_DE"
+# ESCAPED_COLLABORA_DOMAINNAME=hostname\.subdomain\.domain\.tld|subdomain\.domain\.tld
+      - "domain=${ESCAPED_COLLABORA_DOMAINNAME}"
+      - "extra_params=--o:ssl.enable=false --o:ssl.termination=true"
+      - "LC_CTYPE=C.UTF-8"
+      - "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+# COLLABORA_USERNAME=username
+      - "username=${COLLABORA_USERNAME}"
+# COLLABORA_PASSWORD=***PASSWORD***
+      - "password=${COLLABORA_PASSWORD}"
+# DOMAINNAME=subdomain.mydomain.tld
+      - "VIRTUAL_HOST=collabora.${DOMAINNAME}"
+      - "VIRTUAL_PORT=9980"
+      - "VIRTUAL_PROTO=https"
+    networks:
+      - proxy
+    ports:
+      - "9980:9980"
+    hostname: collabora
+    domainname: ${DOMAINNAME}
+    labels:
+      - "org.opencontainers.image.ref.name=ubuntu"
+      - "org.opencontainers.image.version=18.04"
+      - "traefik.docker.network=proxy"
+      - "traefik.enable=true"
+      - "traefik.http.routers.collabora.entrypoints=https"
+# DOMAINNAME=subdomain.mydomain.tld
+      - "traefik.http.routers.collabora.rule=Host(`collabora.${DOMAINNAME}`)"
+      - "traefik.http.routers.collabora.service=collabora"
+      - "traefik.http.routers.collabora.tls=true"
+      - "traefik.http.routers.collabora.tls.certresolver=cloudflare"
+      - "traefik.http.routers.collabora.tls.options=default"
+      - "traefik.http.services.collabora.loadbalancer.server.port=9980"
+
+networks:
+  proxy:
+    name: proxy
+    external: true
