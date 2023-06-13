@@ -26,6 +26,8 @@ There is a .env file included with examples for the environment variables. If yo
 
 My Home Lab runs an Ubuntu Virtual Machine to host my Docker Projects which runs Traefik as a reverse proxy. The reverse proxy is needed to be able to provide all internal services with an SSL certificate. I found the easiest for me was to use Cloudflare and get SSL certificates through Cloudflare. A free Cloudflare account is more than enough to achieve this. While you can deploy this Stack without Traefik, you would have to set up SSL certificates for each service individually. Traefik makes this otherwise tedious process effortless.
 
+If you need to set up Traefik, check out my Traefik-Docker-Compose package here: https://github.com/Andreaux/Traefik-Docker-Compose
+
 ## Support this project
 
 If you find this useful, a coffee through Ko-Fi is all it takes to make me happy <3 (I love coffee :D) Click the Sponsor button on the top of this page or visit https://ko-fi.com/andreaux to buy me a coffee.
