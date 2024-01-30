@@ -1,40 +1,43 @@
 version: "3.6"
 
+#
+# Mounting NFS shares for persistent data and configurations. Change this to suit your environment.
+# If you prefer local mounts like anything under /mnt, you will need to change volume definitions in the containers as well.
+# I added comments in each so it's easier to locate them.
+#
+volumes:
+  nextcloudhtml:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: "addr=172.16.0.60,rw,noatime,rsize=8192,wsize=8192,tcp,timeo=14,nfsvers=4"
+      device: ":/mnt/Volume_1/Apps/Nextcloud_Html"
+  nextclouddb:
+    driver: local
+    driver_opts:
+      type: "nfs"
+      o: "addr=172.16.0.60,rw,noatime,rsize=8192,wsize=8192,tcp,timeo=14,nfsvers=4"
+      device: ":/mnt/Volume_1/Apps/Nextcloud_DB"
+
 services:
-  mariadb:
-    image: mariadb
-    container_name: mariadb
-# MARIADB_USER=www-data
-    user: ${MARIADB_USER}
-    command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW
-    volumes:
-# MOUNTED_DATA_DIR=/mnt
-      - ${MOUNTED_DATA_DIR}/mysql:/var/lib/mysql
-      - /etc/localtime:/etc/localtime:ro
+  postgres:
+    image: postgres
+    container_name: postgres
     environment:
-      - GOSU_VERSION=1.14
-      - MARIADB_MYSQL_LOCALHOST_USER=true
-# MYSQL_ROOT_PASSWORD=***PASSWORD***
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-      - TZ=${TZ}
-# PUID=33
-      - PUID=${PUID}
-# PGID=33
-      - PGID=${PGID}
-#      - MYSQL_DATABASE=${MYSQL_DATABASE}
-#      - MYSQL_USER=${MYSQL_USER}
-#      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
-#      - MYSQL_HOST=${MYSQL_DATABASE}:3306
-#      - PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - PGDATA=${PGDATA}
+    volumes:
+# To use a local mount, change 'nextclouddb' to something like the example below:
+#      - /mnt/postgresql:/var/lib/postgresql/data
+      - nextclouddb:/var/lib/postgresql/data
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "mysql --uroot -p${MYSQL_ROOT_PASSWORD} -e 'SHOW DATABASES;' || exit 1"]
-      interval: 2s
-      retries: 120
     networks:
-      - proxy
+      proxy:
+        ipv4_address: ${POSTGRES_IP}
     ports:
-      - "32768:3306"
+      - "32768:5432"
     labels:
       - "traefik.docker.network=proxy"
       - "traefik.enable=true"
@@ -43,42 +46,45 @@ services:
     image: nextcloud
     container_name: nextcloud
     depends_on:
-      mariadb:
-        condition: service_healthy
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
     volumes:
-# MOUNTED_DATA_DIR=/mnt
-      - ${MOUNTED_DATA_DIR}/nextcloud:/var/www/html
+# To use a local mount, change 'nextclouddb' to something like the example below:
+#      - /mnt/nextcloud:/var/www/html
+      - nextcloudhtml:/var/www/html
     restart: unless-stopped
     environment:
-# PUID=33
       - PUID=${PUID}
-# PGID=33
       - PGID=${PGID}
-# NEXTCLOUD_HOSTNAME=hostname.subdomain.mydomain.tld
       - NEXTCLOUD_HOSTNAME=nextcloud.${DOMAINNAME}
+      - REDIS_HOST=${BRIDGE_IP}
+      - REDIS_HOST_PORT=${REDIS_HOST_PORT}
+    hostname: nextcloud
+    domainname: cloud.ourhome.hu
     networks:
-      - proxy
+      proxy:
+        ipv4_address: ${NEXTCLOUD_IP}
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.nextcloud.entrypoints=http"
-# DOMAINNAME=subdomain.mydomain.tld
       - "traefik.http.routers.nextcloud.rule=Host(`nextcloud.${DOMAINNAME}`)"
-      - "traefik.http.middlewares.https-redirect.redirectscheme.scheme=https"
-      - "traefik.http.routers.nextcloud.middlewares=https-redirect"
       - "traefik.http.routers.nextcloud-secure.entrypoints=https"
-# DOMAINNAME=subdomain.mydomain.tld
       - "traefik.http.routers.nextcloud-secure.rule=Host(`nextcloud.${DOMAINNAME}`)"
+      - "traefik.http.routers.nextcloud.middlewares=https-redirect"
+      - "traefik.http.middlewares.https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.nextcloud-secure.middlewares=nextcloud_redirectregex,nextcloud-headers"
       - "traefik.http.middlewares.nextcloud_redirectregex.redirectregex.regex=https://(.*)/.well-known/(card|cal)dav"
       - "traefik.http.middlewares.nextcloud_redirectregex.redirectregex.replacement=https://$$1/remote.php/dav/"
       - "traefik.http.middlewares.nextcloud_redirectregex.redirectregex.permanent=true"
-      - "traefik.http.middlewares.nextcloud-headers.headers.referrerPolicy=no-referrer"
+      - "traefik.http.middlewares.nextcloud-headers.headers.referrerPolicy=same-origin"
       - "traefik.http.middlewares.nextcloud-headers.headers.stsSeconds=31536000"
       - "traefik.http.middlewares.nextcloud-headers.headers.forceSTSHeader=true"
       - "traefik.http.middlewares.nextcloud-headers.headers.stsPreload=true"
       - "traefik.http.middlewares.nextcloud-headers.headers.stsIncludeSubdomains=true"
       - "traefik.http.middlewares.nextcloud-headers.headers.browserXssFilter=true"
       - "traefik.http.middlewares.nextcloud-headers.headers.customRequestHeaders.X-Forwarded-Proto=https"
-      - "traefik.http.routers.nextcloud-secure.middlewares=nextcloud_redirectregex,nextcloud-headers"
       - "traefik.http.routers.nextcloud-secure.tls=true"
       - "traefik.http.routers.nextcloud-secure.tls.certresolver=cloudflare"
       - "traefik.http.routers.nextcloud-secure.service=nextcloud"
@@ -89,10 +95,12 @@ services:
     image: rcdailey/nextcloud-cronjob
     container_name: nextcloud-cronjob
     depends_on:
-      - nextcloud
+      nextcloud:
+        condition: service_started
     volumes:
-# MOUNTED_DATA_DIR=/mnt
-      - ${MOUNTED_DATA_DIR}/nextcloud:/var/www/html
+# To use a local mount, change 'nextcloudhtml' (must be the same as for the nextcloud container!) to something like the example below:
+#      - /mnt/nextcloud:/var/www/html
+      - nextcloudhtml:/var/www/html
       - /etc/localtime:/etc/localtime:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
     restart: unless-stopped
@@ -106,35 +114,33 @@ services:
 #      - NEXTCLOUD_PROJECT_NAME
       - PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     networks:
-      - proxy
+      proxy:
+        ipv4_address: ${NEXTCLOUD_CRONJOB_IP}
 
   collabora:
     image: collabora/code:latest
     container_name: collabora
     depends_on:
-      - nextcloud
+      nextcloud:
+        condition: service_started
     volumes:
-# MOUNTED_DATA_DIR=/mnt
       - /etc/localtime:/etc/localtime
       - /etc/timezone:/etc/timezone
     restart: unless-stopped
     environment:
       - "dictionaries=en_US,hu_HU,fr_FR,de_DE"
-# ESCAPED_COLLABORA_DOMAINNAME=hostname\.subdomain\.domain\.tld|subdomain\.domain\.tld
       - "domain=${ESCAPED_COLLABORA_DOMAINNAME}"
       - "extra_params=--o:ssl.enable=false --o:ssl.termination=true"
       - "LC_CTYPE=C.UTF-8"
       - "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-# COLLABORA_USERNAME=username
       - "username=${COLLABORA_USERNAME}"
-# COLLABORA_PASSWORD=***PASSWORD***
       - "password=${COLLABORA_PASSWORD}"
-# DOMAINNAME=subdomain.mydomain.tld
       - "VIRTUAL_HOST=collabora.${DOMAINNAME}"
       - "VIRTUAL_PORT=9980"
       - "VIRTUAL_PROTO=https"
     networks:
-      - proxy
+      proxy:
+        ipv4_address: ${COLLABORA_IP}
     ports:
       - "9980:9980"
     hostname: collabora
@@ -145,13 +151,24 @@ services:
       - "traefik.docker.network=proxy"
       - "traefik.enable=true"
       - "traefik.http.routers.collabora.entrypoints=https"
-# DOMAINNAME=subdomain.mydomain.tld
       - "traefik.http.routers.collabora.rule=Host(`collabora.${DOMAINNAME}`)"
       - "traefik.http.routers.collabora.service=collabora"
       - "traefik.http.routers.collabora.tls=true"
       - "traefik.http.routers.collabora.tls.certresolver=cloudflare"
       - "traefik.http.routers.collabora.tls.options=default"
       - "traefik.http.services.collabora.loadbalancer.server.port=9980"
+
+  redis:
+    image: redis:alpine
+    container_name: redis
+#    command: /bin/sh -c "redis-server --requirepass ${REDIS_HOST_PASSWORD}"
+    environment:
+      - REDIS_HOST_PASSWORD=${REDIS_HOST_PASSWORD}
+    networks: 
+      proxy:
+        ipv4_address: ${REDIS_IP}
+    ports:
+      - "6379:6379"
 
 networks:
   proxy:
