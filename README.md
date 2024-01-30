@@ -34,7 +34,7 @@ If you use Portainer, you will have to set these within Portainer (Advanced mode
 
 My Home Lab runs an Ubuntu Virtual Machine to host my Docker Projects which runs Traefik as a reverse proxy. The reverse proxy is needed to be able to provide all internal services with an SSL certificate and be able to use all services without needing to write port numbers in URLs. I found the easiest for me was to use Cloudflare and get SSL certificates through Cloudflare. A free Cloudflare account is more than enough to achieve this. While you can deploy this Stack without Traefik, you would have to set up SSL certificates for each service individually. Traefik makes this otherwise tedious process effortless.
 
-If you need to set up Traefik and/or Portainer, check out my Traefik-Docker-Compose package here: https://github.com/Andreaux/Traefik-Docker-Compose or my Traefik-Docker-Compose package (*coming soon*).
+If you need to set up Traefik and/or Portainer, check out my Traefik-Docker-Compose package here: https://github.com/Andreaux/Traefik-Docker-Compose or my Portainer-Docker-Compose package (*coming soon*).
 
 ## Support this project
 
