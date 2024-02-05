@@ -3,7 +3,7 @@ Stack version 2.0
 # WARNING!
 Previous versions of this stack use MariaDB. For this version, I transitioned to Postgres. If you are using a previous version of this stack, be aware that you will loose DB contents if you deploy this new stack.
 
-# Nextcloud docker-compose template with Postgres, Redis, Collabora CODE and Cron jobs with traefik labels
+# Nextcloud docker-compose template with Postgres, Redis, Collabora CODE and Cron jobs with Traefik labels
 
 This is my Nextcloud Docker-Compose "all-in-one" template.
 
